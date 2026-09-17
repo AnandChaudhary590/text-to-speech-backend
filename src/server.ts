@@ -9,6 +9,8 @@ import authRoutes from "./routes/authRoutes";
 import cookieParser from "cookie-parser";
 import voiceRoutes from "./routes/voiceRoutes";
 import speechRoutes from "./routes/speechRoutes";
+import favoriteRoutes from "./routes/favoriteRoutes";
+
 import path from "path";
 
 dotenv.config();
@@ -55,6 +57,7 @@ app.use("/api", apiLimiter);
 app.use("/api/auth", authRoutes);
 app.use("/api/voices", voiceRoutes);
 app.use("/api/speech", speechRoutes);
+app.use("/api/favorites",favoriteRoutes);
 
 // Health check
 app.get("/api/health", async (_req, res) => {
