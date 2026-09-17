@@ -6,6 +6,7 @@ import morgan from "morgan";
 import rateLimit from "express-rate-limit";
 import prisma from "./services/prismaService";
 import authRoutes from "./routes/authRoutes";
+import cookieParser from "cookie-parser";
 
 dotenv.config();
 
@@ -15,6 +16,7 @@ const PORT = process.env.PORT || 5000;
 
 // Security
 app.use(helmet());
+
 
 // CORS
 app.use(
@@ -26,7 +28,7 @@ app.use(
 
 // JSON body parser
 app.use(express.json({ limit: "1mb" }));
-
+app.use(cookieParser());
 // Request logging
 app.use(morgan("dev"));
 

@@ -16,6 +16,16 @@ export const generateToken = (userId: string): string => {
   );
 };
 
+export const generateRefreshToken = (userId: string): string => {
+  return jwt.sign(
+    { userId },
+    JWT_SECRET,
+    {
+      expiresIn: "30d",
+    }
+  );
+};
+
 export const verifyToken = (token: string): { userId: string } => {
   return jwt.verify(token, JWT_SECRET) as { userId: string };
 };
