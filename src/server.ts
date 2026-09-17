@@ -7,10 +7,18 @@ import rateLimit from "express-rate-limit";
 import prisma from "./services/prismaService";
 import authRoutes from "./routes/authRoutes";
 import cookieParser from "cookie-parser";
+import voiceRoutes from "./routes/voiceRoutes";
+import speechRoutes from "./routes/speechRoutes";
+import path from "path";
 
 dotenv.config();
 
 const app = express();
+
+app.use(
+  "/uploads",
+  express.static(path.join(process.cwd(), "uploads"))
+);
 
 const PORT = process.env.PORT || 5000;
 
@@ -32,6 +40,7 @@ app.use(cookieParser());
 // Request logging
 app.use(morgan("dev"));
 
+
 // Rate limiting
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -44,6 +53,8 @@ const apiLimiter = rateLimit({
 
 app.use("/api", apiLimiter);
 app.use("/api/auth", authRoutes);
+app.use("/api/voices", voiceRoutes);
+app.use("/api/speech", speechRoutes);
 
 // Health check
 app.get("/api/health", async (_req, res) => {

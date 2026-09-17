@@ -21,3 +21,6 @@ src/**/*.js
 src/**/*.js.map
 src/**/*.d.ts
 src/**/*.d.ts.map
+# Generated audio files
+test-output.mp3
+uploads/

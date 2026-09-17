@@ -3,6 +3,12 @@ import bcrypt from "bcryptjs";
 import prisma from "../services/prismaService";
 import { generateToken, generateRefreshToken } from "../utils/jwt";
 import { AuthRequest } from "../middleware/authMiddleware";
+import { createPasswordResetToken } from "../services/passwordResetService";
+import { sendPasswordResetEmail } from "../services/emailService";
+import {
+  verifyPasswordResetToken,
+  deletePasswordResetToken,
+} from "../services/passwordResetService";
 
 // ==============================
 // REGISTER
@@ -355,6 +361,134 @@ export const logout = async (
     res.status(500).json({
       success: false,
       message: "Internal server error",
+    });
+  }
+};
+
+// ==============================
+// FORGOT PASSWORD
+// ==============================
+
+export const forgotPassword = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      res.status(400).json({
+        success: false,
+        message: "Email is required",
+      });
+      return;
+    }
+
+    const normalizedEmail = email.toLowerCase().trim();
+
+    const user = await prisma.user.findUnique({
+      where: {
+        email: normalizedEmail,
+      },
+    });
+
+    // Don't reveal whether the email exists
+    if (!user) {
+      res.status(200).json({
+        success: true,
+        message:
+          "If an account exists with this email, a password reset link has been sent.",
+      });
+      return;
+    }
+
+    const resetToken = await createPasswordResetToken(user.id);
+
+    await sendPasswordResetEmail(user.email, resetToken);
+
+    res.status(200).json({
+      success: true,
+      message:
+        "If an account exists with this email, a password reset link has been sent.",
+    });
+  } catch (error) {
+    console.error("Forgot password error:", error);
+
+    res.status(500).json({
+      success: false,
+      message: "Unable to process password reset request",
+    });
+  }
+};
+
+// ==============================
+// RESET PASSWORD
+// ==============================
+
+export const resetPassword = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const { token, newPassword } = req.body;
+
+    if (!token || !newPassword) {
+      res.status(400).json({
+        success: false,
+        message: "Token and new password are required",
+      });
+      return;
+    }
+
+    if (newPassword.length < 8) {
+      res.status(400).json({
+        success: false,
+        message: "Password must be at least 8 characters",
+      });
+      return;
+    }
+
+    const resetToken = await verifyPasswordResetToken(token);
+
+    if (!resetToken) {
+      res.status(400).json({
+        success: false,
+        message: "Invalid or expired reset token",
+      });
+      return;
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 12);
+
+    await prisma.user.update({
+      where: {
+        id: resetToken.userId,
+      },
+      data: {
+        passwordHash,
+      },
+    });
+
+    // Delete token after successful password reset
+    await deletePasswordResetToken(resetToken.id);
+
+    // Invalidate existing sessions
+    await prisma.session.deleteMany({
+      where: {
+        userId: resetToken.userId,
+      },
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Password reset successful",
+    });
+  } catch (error) {
+    console.error("Reset password error:", error);
+
+    res.status(500).json({
+      success: false,
+      message: "Unable to reset password",
     });
   }
 };
