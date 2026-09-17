@@ -1,0 +1,23 @@
+node_modules/
+.env
+dist/
+*.log
+
+# Prisma generated config files
+prisma7.config.js
+prisma7.config.js.map
+prisma7.config.d.ts
+prisma7.config.d.ts.map
+
+# OS / editor
+.DS_Store
+.vscode/
+
+# Generated Prisma client
+src/generated/
+
+# TypeScript generated files
+src/**/*.js
+src/**/*.js.map
+src/**/*.d.ts
+src/**/*.d.ts.map
