@@ -5,6 +5,7 @@ import helmet from "helmet";
 import morgan from "morgan";
 import rateLimit from "express-rate-limit";
 import prisma from "./services/prismaService";
+import authRoutes from "./routes/authRoutes";
 
 dotenv.config();
 
@@ -40,6 +41,7 @@ const apiLimiter = rateLimit({
 });
 
 app.use("/api", apiLimiter);
+app.use("/api/auth", authRoutes);
 
 // Health check
 app.get("/api/health", async (_req, res) => {
