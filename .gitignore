@@ -24,3 +24,7 @@ src/**/*.d.ts.map
 # Generated audio files
 test-output.mp3
 uploads/
+
+# Test files
+test*.docx
+~$*.docx

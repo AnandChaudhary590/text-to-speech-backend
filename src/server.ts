@@ -10,6 +10,7 @@ import cookieParser from "cookie-parser";
 import voiceRoutes from "./routes/voiceRoutes";
 import speechRoutes from "./routes/speechRoutes";
 import favoriteRoutes from "./routes/favoriteRoutes";
+import fileRoutes from "./routes/fileRoutes";
 
 import path from "path";
 
@@ -58,6 +59,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/voices", voiceRoutes);
 app.use("/api/speech", speechRoutes);
 app.use("/api/favorites",favoriteRoutes);
+app.use("/api/files", fileRoutes);
 
 // Health check
 app.get("/api/health", async (_req, res) => {
