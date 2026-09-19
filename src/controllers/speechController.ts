@@ -2,6 +2,8 @@ import { Response } from "express";
 import prisma from "../services/prismaService";
 import { AuthRequest } from "../middleware/authMiddleware";
 import { generateSpeech } from "../services/ttsService";
+import { updateDailyUsage } from "../services/usageService";
+import { checkUsageLimit } from "../services/usageLimitService";
 
 export const generateSpeechController = async (
   req: AuthRequest,
@@ -35,6 +37,25 @@ export const generateSpeechController = async (
     }
 
     const trimmedText = text.trim();
+    const usageLimit = await checkUsageLimit(
+  req.user.userId,
+  trimmedText.length
+);
+
+if (!usageLimit.allowed) {
+  res.status(429).json({
+    success: false,
+    message: "Daily character usage limit exceeded",
+    data: {
+      plan: usageLimit.plan,
+      limit: usageLimit.limit,
+      used: usageLimit.used,
+      remaining: usageLimit.remaining,
+      requested: trimmedText.length,
+    },
+  });
+  return;
+}
 
     if (!trimmedText) {
       res.status(400).json({
@@ -149,6 +170,11 @@ export const generateSpeechController = async (
   speed,
   pitch,
   volume,
+});
+await updateDailyUsage(req.user.userId, {
+  charactersUsed: trimmedText.length,
+  speechCount: 1,
+  audioSeconds: result.duration ?? 0,
 });
       const updatedSpeech = await prisma.speechGeneration.update({
         where: {

@@ -5,6 +5,7 @@ import {
   getUploadedFiles,
   getFileById,
   deleteFile,
+  generateSpeechFromFile,
 } from "../controllers/fileController";
 import { authMiddleware } from "../middleware/authMiddleware";
 import upload from "../middleware/uploadMiddleware";
@@ -35,6 +36,12 @@ router.delete(
   "/:fileId",
   authMiddleware,
   deleteFile
+);
+
+router.post(
+  "/:fileId/speech",
+  authMiddleware,
+  generateSpeechFromFile
 );
 
 export default router;

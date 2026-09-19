@@ -5,6 +5,8 @@ import fs from "fs/promises";
 import prisma from "../services/prismaService";
 import { AuthRequest } from "../middleware/authMiddleware";
 import { extractTextFromFile } from "../services/fileExtractionService";
+import { updateDailyUsage } from "../services/usageService";
+import { checkUsageLimit } from "../services/usageLimitService";
 
 export const uploadFile = async (
   req: AuthRequest,
@@ -252,6 +254,196 @@ export const deleteFile = async (
     res.status(500).json({
       success: false,
       message: "Unable to delete file",
+    });
+  }
+};
+
+export const generateSpeechFromFile = async (
+  req: AuthRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    if (!req.user?.userId) {
+      res.status(401).json({
+        success: false,
+        message: "Authentication required",
+      });
+      return;
+    }
+
+    const userId = req.user.userId;
+    const fileId = String(req.params.fileId);
+
+    if (!fileId) {
+      res.status(400).json({
+        success: false,
+        message: "File ID is required",
+      });
+      return;
+    }
+
+    const file = await prisma.uploadedFile.findFirst({
+      where: {
+        id: fileId,
+        userId,
+      },
+    });
+
+    if (!file) {
+      res.status(404).json({
+        success: false,
+        message: "File not found",
+      });
+      return;
+    }
+
+    if (!file.extractedText?.trim()) {
+      res.status(400).json({
+        success: false,
+        message: "No text available in this file",
+      });
+      return;
+    }
+    const extractedText = file.extractedText.trim();
+
+const usageLimit = await checkUsageLimit(
+  userId,
+  extractedText.length
+);
+
+if (!usageLimit.allowed) {
+  res.status(429).json({
+    success: false,
+    message: "Daily character usage limit exceeded",
+    data: {
+      plan: usageLimit.plan,
+      limit: usageLimit.limit,
+      used: usageLimit.used,
+      remaining: usageLimit.remaining,
+      requested: extractedText.length,
+    },
+  });
+  return;
+}
+
+    const language = String(req.body.language || "en-US");
+    const voiceId = req.body.voiceId
+      ? String(req.body.voiceId)
+      : undefined;
+
+    const speed = req.body.speed !== undefined
+      ? Number(req.body.speed)
+      : 1.0;
+
+    const pitch = req.body.pitch !== undefined
+      ? Number(req.body.pitch)
+      : 0.0;
+
+    const volume = req.body.volume !== undefined
+      ? Number(req.body.volume)
+      : 1.0;
+
+    const voice = voiceId
+      ? await prisma.voice.findFirst({
+          where: {
+            id: voiceId,
+            isActive: true,
+          },
+        })
+      : null;
+
+    if (voiceId && !voice) {
+      res.status(404).json({
+        success: false,
+        message: "Voice not found",
+      });
+      return;
+    }
+
+    if (voice && voice.languageCode !== language) {
+      res.status(400).json({
+        success: false,
+        message: "Selected voice does not match the selected language",
+      });
+      return;
+    }
+
+    const speech = await prisma.speechGeneration.create({
+      data: {
+        userId,
+        voiceId: voice?.id,
+        text: extractedText,
+        language,
+        speed,
+        pitch,
+        volume,
+        status: "PROCESSING",
+      },
+    });
+
+    try {
+      const { generateSpeech } = await import(
+        "../services/ttsService.js"
+      );
+
+      const result = await generateSpeech({
+        text: extractedText,
+        language,
+        providerVoiceId: voice?.providerId,
+        speed,
+        pitch,
+        volume,
+      });
+
+      await updateDailyUsage(userId, {
+  charactersUsed: extractedText.length,
+  speechCount: 1,
+  audioSeconds: result.duration ?? 0,
+});
+
+      const updatedSpeech = await prisma.speechGeneration.update({
+        where: {
+          id: speech.id,
+        },
+        data: {
+          status: "COMPLETED",
+          audioUrl: result.audioUrl,
+          duration: result.duration,
+        },
+        include: {
+          voice: true,
+        },
+      });
+
+      res.status(201).json({
+        success: true,
+        message: "Speech generated successfully from file",
+        data: updatedSpeech,
+      });
+    } catch (error) {
+      console.error("File TTS generation error:", error);
+
+      await prisma.speechGeneration.update({
+        where: {
+          id: speech.id,
+        },
+        data: {
+          status: "FAILED",
+          errorMessage: "Speech generation failed",
+        },
+      });
+
+      res.status(502).json({
+        success: false,
+        message: "Unable to generate speech from file",
+      });
+    }
+  } catch (error) {
+    console.error("Generate speech from file error:", error);
+
+    res.status(500).json({
+      success: false,
+      message: "Unable to generate speech from file",
     });
   }
 };
