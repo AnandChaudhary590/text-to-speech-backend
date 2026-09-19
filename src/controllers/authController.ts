@@ -19,16 +19,49 @@ export const register = async (
   res: Response
 ): Promise<void> => {
   try {
-    const { name, email, password } = req.body;
+    const { name, email, phone, password } = req.body;
 
-    if (!name || !email || !password) {
+    // Required fields
+    if (!name || !email || !phone || !password) {
       res.status(400).json({
         success: false,
-        message: "Name, email and password are required",
+        message: "Name, email, phone and password are required",
       });
       return;
     }
 
+    const trimmedName = name.trim();
+    const normalizedEmail = email.toLowerCase().trim();
+    const trimmedPhone = String(phone).trim();
+
+    // Name validation - numbers are not allowed
+    if (/\d/.test(trimmedName)) {
+      res.status(400).json({
+        success: false,
+        message: "Name must not contain numbers",
+      });
+      return;
+    }
+
+    // Name should contain at least letters
+    if (!/^[A-Za-z\s]+$/.test(trimmedName)) {
+      res.status(400).json({
+        success: false,
+        message: "Name can contain only letters and spaces",
+      });
+      return;
+    }
+
+    // Phone validation - numbers only
+    if (!/^\d+$/.test(trimmedPhone)) {
+      res.status(400).json({
+        success: false,
+        message: "Phone number must contain only numbers",
+      });
+      return;
+    }
+
+    // Password minimum length
     if (password.length < 8) {
       res.status(400).json({
         success: false,
@@ -37,8 +70,16 @@ export const register = async (
       return;
     }
 
-    const normalizedEmail = email.toLowerCase().trim();
+    // Password must contain at least one number
+    if (!/\d/.test(password)) {
+      res.status(400).json({
+        success: false,
+        message: "Password must contain at least one number",
+      });
+      return;
+    }
 
+    // Check existing email
     const existingUser = await prisma.user.findUnique({
       where: {
         email: normalizedEmail,
@@ -53,12 +94,30 @@ export const register = async (
       return;
     }
 
+    // Check existing phone
+    const existingPhone = await prisma.user.findUnique({
+      where: {
+        phone: trimmedPhone,
+      },
+    });
+
+    if (existingPhone) {
+      res.status(409).json({
+        success: false,
+        message: "Phone number already registered",
+      });
+      return;
+    }
+
+    // Hash password
     const passwordHash = await bcrypt.hash(password, 12);
 
+    // Create user
     const user = await prisma.user.create({
       data: {
-        name: name.trim(),
+        name: trimmedName,
         email: normalizedEmail,
+        phone: trimmedPhone,
         passwordHash,
       },
     });
@@ -73,6 +132,7 @@ export const register = async (
           id: user.id,
           name: user.name,
           email: user.email,
+          phone: user.phone,
           role: user.role,
           plan: user.plan,
         },
@@ -88,7 +148,6 @@ export const register = async (
     });
   }
 };
-
 // ==============================
 // LOGIN
 // ==============================
