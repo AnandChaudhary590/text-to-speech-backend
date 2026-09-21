@@ -259,3 +259,66 @@ export const getSpeechHistory = async (
     });
   }
 };
+
+// ===============================
+// DELETE SPEECH
+// ===============================
+
+export const deleteSpeech = async (
+  req: AuthRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    if (!req.user?.userId) {
+      res.status(401).json({
+        success: false,
+        message: "Authentication required",
+      });
+      return;
+    }
+
+    const userId = req.user.userId;
+  const speechId = String(req.params.id);
+
+    if (!speechId) {
+      res.status(400).json({
+        success: false,
+        message: "Speech ID is required",
+      });
+      return;
+    }
+
+    const speech = await prisma.speechGeneration.findFirst({
+      where: {
+        id: speechId,
+        userId,
+      },
+    });
+
+    if (!speech) {
+      res.status(404).json({
+        success: false,
+        message: "Speech not found",
+      });
+      return;
+    }
+
+    await prisma.speechGeneration.delete({
+      where: {
+        id: speechId,
+      },
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Speech deleted successfully",
+    });
+  } catch (error) {
+    console.error("Delete speech error:", error);
+
+    res.status(500).json({
+      success: false,
+      message: "Unable to delete speech",
+    });
+  }
+};

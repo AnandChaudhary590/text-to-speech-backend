@@ -2,6 +2,7 @@ import { Router } from "express";
 import {
   generateSpeechController,
   getSpeechHistory,
+  deleteSpeech,
 } from "../controllers/speechController";
 import { authMiddleware } from "../middleware/authMiddleware";
 
@@ -17,6 +18,12 @@ router.post(
   "/generate",
   authMiddleware,
   generateSpeechController
+);
+
+router.delete(
+  "/:id",
+  authMiddleware,
+  deleteSpeech
 );
 
 export default router;

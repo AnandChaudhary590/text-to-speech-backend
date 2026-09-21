@@ -4,6 +4,7 @@ import { verifyToken } from "../utils/jwt";
 export interface AuthRequest extends Request {
   user?: {
     userId: string;
+    role: "USER" | "ADMIN";
   };
 }
 
@@ -15,7 +16,10 @@ export const authMiddleware = (
   try {
     const authHeader = req.headers.authorization;
 
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    if (
+      !authHeader ||
+      !authHeader.startsWith("Bearer ")
+    ) {
       res.status(401).json({
         success: false,
         message: "Authentication token required",
@@ -37,11 +41,15 @@ export const authMiddleware = (
 
     req.user = {
       userId: decoded.userId,
+      role: decoded.role,
     };
 
     next();
   } catch (error) {
-    console.error("Auth middleware error:", error);
+    console.error(
+      "Auth middleware error:",
+      error
+    );
 
     res.status(401).json({
       success: false,

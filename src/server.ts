@@ -12,6 +12,9 @@ import speechRoutes from "./routes/speechRoutes";
 import favoriteRoutes from "./routes/favoriteRoutes";
 import fileRoutes from "./routes/fileRoutes";
 import usageRoutes from "./routes/usageRoutes";
+import adminRoutes from "./routes/adminRoutes";
+import adminUsersRoutes from "./routes/adminUsersRoutes";
+import adminAnalyticsRoutes from "./routes/adminAnalyticsRoutes";
 
 import path from "path";
 
@@ -62,6 +65,9 @@ app.use("/api/speech", speechRoutes);
 app.use("/api/favorites",favoriteRoutes);
 app.use("/api/files", fileRoutes);
 app.use("/api/usage", usageRoutes);
+app.use("/api/admin", adminRoutes);
+app.use("/api/admin/users", adminUsersRoutes);
+app.use("/api/admin/analytics", adminAnalyticsRoutes);
 
 // Health check
 app.get("/api/health", async (_req, res) => {

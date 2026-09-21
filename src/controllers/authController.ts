@@ -122,7 +122,10 @@ export const register = async (
       },
     });
 
-    const token = generateToken(user.id);
+    const token = generateToken(
+  user.id,
+  user.role
+);
 
     res.status(201).json({
       success: true,
@@ -204,8 +207,10 @@ export const login = async (
       return;
     }
 
-    const token = generateToken(user.id);
-
+    const token = generateToken(
+  user.id,
+  user.role
+);
     // Generate refresh token
     const refreshToken = generateRefreshToken(user.id);
 
@@ -366,7 +371,10 @@ export const refreshAccessToken = async (
       return;
     }
 
-    const newAccessToken = generateToken(session.userId);
+    const newAccessToken = generateToken(
+  session.userId,
+  session.user.role
+);
 
     res.status(200).json({
       success: true,
@@ -548,6 +556,244 @@ export const resetPassword = async (
     res.status(500).json({
       success: false,
       message: "Unable to reset password",
+    });
+  }
+};
+
+// ==============================
+// UPDATE PROFILE
+// ==============================
+
+export const updateProfile = async (
+  req: AuthRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    if (!req.user?.userId) {
+      res.status(401).json({
+        success: false,
+        message: "Authentication required",
+      });
+      return;
+    }
+
+    const userId = req.user.userId;
+    const { name, phone } = req.body;
+
+    if (!name || !phone) {
+      res.status(400).json({
+        success: false,
+        message: "Name and phone are required",
+      });
+      return;
+    }
+
+    const trimmedName = String(name).trim();
+    const trimmedPhone = String(phone).trim();
+
+    // Name validation
+    if (!/^[A-Za-z\s]+$/.test(trimmedName)) {
+      res.status(400).json({
+        success: false,
+        message: "Name can contain only letters and spaces",
+      });
+      return;
+    }
+
+    // Phone validation
+    if (!/^\d+$/.test(trimmedPhone)) {
+      res.status(400).json({
+        success: false,
+        message: "Phone number must contain only numbers",
+      });
+      return;
+    }
+
+    // Check phone belongs to another user
+    const existingPhone = await prisma.user.findFirst({
+      where: {
+        phone: trimmedPhone,
+        NOT: {
+          id: userId,
+        },
+      },
+    });
+
+    if (existingPhone) {
+      res.status(409).json({
+        success: false,
+        message: "Phone number already registered",
+      });
+      return;
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: {
+        id: userId,
+      },
+      data: {
+        name: trimmedName,
+        phone: trimmedPhone,
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        role: true,
+        plan: true,
+        isActive: true,
+        isVerified: true,
+        createdAt: true,
+      },
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Profile updated successfully",
+      data: {
+        user: updatedUser,
+      },
+    });
+  } catch (error) {
+    console.error("Update profile error:", error);
+
+    res.status(500).json({
+      success: false,
+      message: "Unable to update profile",
+    });
+  }
+};
+
+// ==============================
+// CHANGE PASSWORD
+// ==============================
+
+export const changePassword = async (
+  req: AuthRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    if (!req.user?.userId) {
+      res.status(401).json({
+        success: false,
+        message: "Authentication required",
+      });
+      return;
+    }
+
+    const userId = req.user.userId;
+
+    const {
+      currentPassword,
+      newPassword,
+      confirmPassword,
+    } = req.body;
+
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      res.status(400).json({
+        success: false,
+        message: "All password fields are required",
+      });
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      res.status(400).json({
+        success: false,
+        message: "New password and confirm password do not match",
+      });
+      return;
+    }
+
+    if (newPassword.length < 8) {
+      res.status(400).json({
+        success: false,
+        message: "New password must be at least 8 characters",
+      });
+      return;
+    }
+
+    if (!/\d/.test(newPassword)) {
+      res.status(400).json({
+        success: false,
+        message: "New password must contain at least one number",
+      });
+      return;
+    }
+
+    const user = await prisma.user.findUnique({
+      where: {
+        id: userId,
+      },
+    });
+
+    if (!user) {
+      res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+      return;
+    }
+
+    const passwordMatches = await bcrypt.compare(
+      currentPassword,
+      user.passwordHash
+    );
+
+    if (!passwordMatches) {
+      res.status(400).json({
+        success: false,
+        message: "Current password is incorrect",
+      });
+      return;
+    }
+
+    const samePassword = await bcrypt.compare(
+      newPassword,
+      user.passwordHash
+    );
+
+    if (samePassword) {
+      res.status(400).json({
+        success: false,
+        message: "New password must be different from current password",
+      });
+      return;
+    }
+
+    const newPasswordHash = await bcrypt.hash(
+      newPassword,
+      12
+    );
+
+    await prisma.user.update({
+      where: {
+        id: userId,
+      },
+      data: {
+        passwordHash: newPasswordHash,
+      },
+    });
+
+    // Invalidate all existing sessions
+    await prisma.session.deleteMany({
+      where: {
+        userId,
+      },
+    });
+
+    res.status(200).json({
+      success: true,
+      message:
+        "Password changed successfully. Please login again.",
+    });
+  } catch (error) {
+    console.error("Change password error:", error);
+
+    res.status(500).json({
+      success: false,
+      message: "Unable to change password",
     });
   }
 };

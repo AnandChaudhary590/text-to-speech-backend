@@ -6,9 +6,17 @@ if (!JWT_SECRET) {
   throw new Error("JWT_SECRET is not defined in .env");
 }
 
-export const generateToken = (userId: string): string => {
+export type UserRole = "USER" | "ADMIN";
+
+export const generateToken = (
+  userId: string,
+  role: UserRole
+): string => {
   return jwt.sign(
-    { userId },
+    {
+      userId,
+      role,
+    },
     JWT_SECRET,
     {
       expiresIn: "7d",
@@ -16,7 +24,9 @@ export const generateToken = (userId: string): string => {
   );
 };
 
-export const generateRefreshToken = (userId: string): string => {
+export const generateRefreshToken = (
+  userId: string
+): string => {
   return jwt.sign(
     { userId },
     JWT_SECRET,
@@ -26,6 +36,17 @@ export const generateRefreshToken = (userId: string): string => {
   );
 };
 
-export const verifyToken = (token: string): { userId: string } => {
-  return jwt.verify(token, JWT_SECRET) as { userId: string };
+export const verifyToken = (
+  token: string
+): {
+  userId: string;
+  role: UserRole;
+} => {
+  return jwt.verify(
+    token,
+    JWT_SECRET
+  ) as {
+    userId: string;
+    role: UserRole;
+  };
 };
