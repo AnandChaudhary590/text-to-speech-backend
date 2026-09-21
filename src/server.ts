@@ -15,7 +15,6 @@ import usageRoutes from "./routes/usageRoutes";
 import adminRoutes from "./routes/adminRoutes";
 import adminUsersRoutes from "./routes/adminUsersRoutes";
 import adminAnalyticsRoutes from "./routes/adminAnalyticsRoutes";
-
 import path from "path";
 
 dotenv.config();
@@ -32,21 +31,21 @@ const PORT = process.env.PORT || 5000;
 // Security
 app.use(helmet());
 
-
 // CORS
 app.use(
   cors({
-    origin: "http://localhost:5173",
+    origin: process.env.CLIENT_URL,
     credentials: true,
   })
 );
 
 // JSON body parser
 app.use(express.json({ limit: "1mb" }));
+
 app.use(cookieParser());
+
 // Request logging
 app.use(morgan("dev"));
-
 
 // Rate limiting
 const apiLimiter = rateLimit({
@@ -59,10 +58,11 @@ const apiLimiter = rateLimit({
 });
 
 app.use("/api", apiLimiter);
+
 app.use("/api/auth", authRoutes);
 app.use("/api/voices", voiceRoutes);
 app.use("/api/speech", speechRoutes);
-app.use("/api/favorites",favoriteRoutes);
+app.use("/api/favorites", favoriteRoutes);
 app.use("/api/files", fileRoutes);
 app.use("/api/usage", usageRoutes);
 app.use("/api/admin", adminRoutes);
